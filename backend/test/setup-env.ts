@@ -1,0 +1,17 @@
+Object.assign(process.env, {
+  NODE_ENV: 'test',
+  PORT: '3000',
+  APP_URL: 'http://localhost:5173',
+  CORS_ORIGINS: 'http://localhost:5173',
+  DB_HOST: '127.0.0.1',
+  DB_PORT: '5432',
+  DB_NAME: 'ditado',
+  DB_USER: 'ditado',
+  DB_PASSWORD: 'ditado_dev',
+  JWT_SECRET: '0123456789abcdef0123456789abcdef',
+  JWT_EXPIRES_IN: '1h',
+  BCRYPT_ROUNDS: '12',
+  GROQ_API_KEY: 'gsk_local_test_key',
+  GROQ_TRANSCRIPTION_MODEL: 'whisper-large-v3-turbo',
+  PASSWORD_RESET_ENABLED: 'false',
+});

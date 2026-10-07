@@ -1,0 +1,37 @@
+# Dependencies and builds
+**/node_modules/
+**/dist/
+**/coverage/
+**/*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.*
+backend/.env
+!.env.example
+!backend/.env.example
+
+# Runtime artifacts
+.runtime/
+*.log
+*.pid
+
+# Temporary uploads and test audio
+**/uploads/
+**/tmp/
+*.aac
+*.flac
+*.m4a
+*.mp3
+*.mp4
+*.mpeg
+*.mpga
+*.oga
+*.ogg
+*.wav
+*.webm
+
+# Local tooling
+.DS_Store
+.idea/
+.vscode/
