@@ -55,4 +55,17 @@ describe('Application foundation (e2e)', () => {
 
     expect(response.headers).not.toHaveProperty('access-control-allow-origin');
   });
+
+  it('exposes only public configuration and protects the current user route', async () => {
+    await request(server)
+      .get('/api/config/public')
+      .expect(200)
+      .expect({ passwordResetEnabled: false });
+
+    await request(server).get('/api/users/me').expect(401);
+    await request(server)
+      .get('/api/users/me')
+      .set('Authorization', 'Bearer invalid-token')
+      .expect(401);
+  });
 });

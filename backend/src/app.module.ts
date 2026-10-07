@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth/auth.module';
+import { PublicConfigController } from './config/public-config.controller';
 import { createTypeOrmOptions } from './config/typeorm.config';
 import { validateEnvironment } from './config/environment';
 import { UsersModule } from './users/users.module';
@@ -12,11 +14,13 @@ import { UsersModule } from './users/users.module';
       isGlobal: true,
       validate: validateEnvironment,
     }),
+    AuthModule,
     TypeOrmModule.forRootAsync({
       useFactory: createTypeOrmOptions,
       inject: [ConfigService],
     }),
     UsersModule,
   ],
+  controllers: [PublicConfigController],
 })
 export class AppModule {}

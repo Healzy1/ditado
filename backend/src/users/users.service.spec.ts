@@ -102,3 +102,51 @@ describe('UsersService.ensureFirstAdmin', () => {
     expect(repository.findOne).not.toHaveBeenCalled();
   });
 });
+
+describe('UsersService.registerPublicUser', () => {
+  it('normalizes input and always persists the user role', async () => {
+    const { repository, service } = createService();
+
+    await service.registerPublicUser({
+      name: '  Ana  ',
+      email: ' ANA@EXAMPLE.TEST ',
+      password: 'senha-descartavel-123',
+    });
+
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Ana',
+        email: 'ana@example.test',
+        role: UserRole.USER,
+        passwordHash: expect.any(String) as string,
+      }),
+    );
+  });
+
+  it('rejects invalid passwords before creating a hash or saving', async () => {
+    const { repository, service } = createService();
+
+    await expect(
+      service.registerPublicUser({
+        name: 'Ana',
+        email: 'ana@example.test',
+        password: 'short',
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(repository.create).not.toHaveBeenCalled();
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('maps the normalized email unique constraint to conflict', async () => {
+    const { repository, service } = createService();
+    repository.save.mockRejectedValueOnce({ code: '23505' });
+
+    await expect(
+      service.registerPublicUser({
+        name: 'Ana',
+        email: ' ANA@EXAMPLE.TEST ',
+        password: 'senha-descartavel-123',
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+});

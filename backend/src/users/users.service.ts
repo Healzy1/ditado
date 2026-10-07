@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -73,6 +77,65 @@ export class UsersService {
     }
   }
 
+  async registerPublicUser(input: {
+    name: string;
+    email: string;
+    password: string;
+  }): Promise<PublicUser> {
+    const name = normalizeName(input.name);
+    const email = normalizeEmail(input.email);
+    if (!name || !isEmail(email)) {
+      throw new BadRequestException('Invalid registration data');
+    }
+
+    try {
+      validatePasswordPolicy(input.password);
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Invalid password',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(
+      input.password,
+      this.config.get('BCRYPT_ROUNDS', { infer: true }),
+    );
+
+    try {
+      const user = await this.usersRepository.save(
+        this.usersRepository.create({
+          name,
+          email,
+          passwordHash,
+          role: UserRole.USER,
+        }),
+      );
+      return this.toPublicUser(user);
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        throw new ConflictException('Email is already registered');
+      }
+      throw error;
+    }
+  }
+
+  async findByNormalizedEmail(email: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { email } });
+  }
+
+  async findById(id: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { id } });
+  }
+
+  toPublicUser(user: User): PublicUser {
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+  }
+
   private handleExistingAdmin(user: User): { created: false } {
     if (user.role === UserRole.ADMIN) {
       return { created: false };
@@ -90,4 +153,11 @@ export class UsersService {
       error.code === '23505'
     );
   }
+}
+
+export interface PublicUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
 }
