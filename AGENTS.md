@@ -45,10 +45,11 @@ Para cada etapa ou subetapa da Seção 15:
 3. Aguardar aprovação quando ela tiver sido solicitada ou quando a decisão alterar escopo, contrato ou arquitetura.
 4. Implementar somente a unidade aprovada.
 5. Executar as verificações automatizadas que existirem e forem pertinentes à unidade.
-6. Informar como realizar a verificação humana prevista na etapa.
-7. Corrigir problemas da própria unidade antes de considerá-la concluída.
-8. Relatar arquivos alterados, verificações executadas, resultados e eventuais pendências.
-9. Somente após aceitação humana, preparar a unidade para o commit conceitual correspondente. Nunca fazer commit automaticamente.
+6. Executar diretamente todas as verificações operacionais determinísticas que puderem ser realizadas de forma segura e reproduzível no ambiente disponível.
+7. Se alguma verificação divergir do comportamento esperado, interromper o fluxo, registrar a evidência e reportar o problema. Não corrigir silenciosamente uma divergência que exija mudança de escopo, contrato ou arquitetura.
+8. Relatar arquivos alterados, verificações executadas, resultados observados e eventuais pendências.
+9. Reservar execução manual pelo responsável principalmente para aspectos visuais, subjetivos, interações externas indisponíveis ao agente ou outras verificações que realmente dependam de julgamento humano.
+10. Somente após aceitação do responsável, preparar a unidade para o commit conceitual correspondente. Nunca fazer commit automaticamente.
 
 - Uma etapa ou subetapa deve poder ser verificada e aceita antes da seguinte.
 - Não antecipar funcionalidades de etapas futuras para satisfazer um critério atual.
@@ -128,6 +129,13 @@ Para cada etapa ou subetapa da Seção 15:
 - Se uma verificação não puder ser executada, informar o motivo e fornecer a verificação manual pertinente, sem inventar resultado.
 - Testes devem cobrir primeiro o comportamento alterado e suas regras de segurança relevantes, sem depender de funcionalidades de etapas futuras.
 - Não tornar testes frágeis por acoplamento a detalhes internos quando o contrato observável for suficiente.
+- Após os testes automatizados, o agente deve executar por conta própria todas as verificações operacionais determinísticas que puder realizar no ambiente disponível, incluindo, quando aplicável, chamadas HTTP, consultas ao banco, scripts, inspeções de estado e verificações de Git.
+- Não delegar ao responsável a execução manual de comandos que o agente consiga executar de forma segura, reproduzível e sem exigir julgamento humano.
+- Para cada critério de aceite verificado operacionalmente, registrar `PASSOU` ou `FALHOU`, o comando ou método utilizado e o resultado essencial observado.
+- Verificações que alterem temporariamente estado local devem usar dados descartáveis claramente identificados, preservar dados não relacionados e realizar a limpeza segura ao final quando aplicável.
+- Se uma verificação operacional produzir resultado divergente, não mascarar a falha, alterar o teste para fazê-lo passar ou corrigir silenciosamente a implementação. Registrar a evidência e seguir as regras de escopo e aprovação deste arquivo.
+- A verificação manual pelo responsável deve ser priorizada quando houver avaliação visual ou subjetiva, interação externa indisponível ao agente, limitação real do ambiente ou necessidade explícita de aceite humano.
+
 - Após a implementação completa, a Etapa 9 deve confirmar regressão, integração e aderência à especificação.
 
 ## 12. Git e commits
