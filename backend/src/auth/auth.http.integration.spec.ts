@@ -53,6 +53,14 @@ describe('authentication HTTP integration', () => {
         email: user.email,
         role: user.role,
       })),
+      updateOwnProfile: jest.fn().mockResolvedValue({
+        id: 'current-user',
+        name: 'Ana Silva',
+        email: 'ana.silva@example.test',
+        role: UserRole.USER,
+      }),
+      changeOwnPassword: jest.fn().mockResolvedValue(undefined),
+      deleteOwnAccount: jest.fn().mockResolvedValue(undefined),
     };
     const appConfig = config();
 
@@ -102,6 +110,61 @@ describe('authentication HTTP integration', () => {
         role: UserRole.USER,
       });
       expect(response.body).not.toHaveProperty('passwordHash');
+    });
+
+    it('routes authenticated account-management requests without accepting body identity', async () => {
+      const token = await app.get(JwtService).signAsync({
+        id: 'current-user',
+        role: UserRole.ADMIN,
+      });
+
+      await request(server(app))
+        .patch('/api/users/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: ' Ana Silva ' })
+        .expect(200)
+        .expect({
+          id: 'current-user',
+          name: 'Ana Silva',
+          email: 'ana.silva@example.test',
+          role: UserRole.USER,
+        });
+      expect(users.updateOwnProfile).toHaveBeenCalledWith('current-user', {
+        name: 'Ana Silva',
+      });
+
+      await request(server(app))
+        .patch('/api/users/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({})
+        .expect(400);
+      await request(server(app))
+        .patch('/api/users/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Ana', role: 'admin' })
+        .expect(400);
+
+      await request(server(app))
+        .patch('/api/users/me/password')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          currentPassword: 'senha-atual-123',
+          newPassword: 'senha-nova-valida-123',
+        })
+        .expect(204);
+      expect(users.changeOwnPassword).toHaveBeenCalledWith('current-user', {
+        currentPassword: 'senha-atual-123',
+        newPassword: 'senha-nova-valida-123',
+      });
+
+      await request(server(app))
+        .delete('/api/users/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ password: 'senha-atual-123' })
+        .expect(204);
+      expect(users.deleteOwnAccount).toHaveBeenCalledWith('current-user', {
+        password: 'senha-atual-123',
+      });
     });
   });
 

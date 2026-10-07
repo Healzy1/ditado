@@ -2,16 +2,21 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { Repository } from 'typeorm';
 import { validatePasswordPolicy } from '../auth/password-policy';
+import { PasswordResetToken } from '../auth/entities/password-reset-token.entity';
 import { UserRole } from '../common/enums/user-role.enum';
 import type { EnvironmentVariables } from '../config/environment';
 import { isEmail, normalizeEmail, normalizeName } from './user-normalization';
 import { User } from './entities/user.entity';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { DeleteAccountDto } from './dto/delete-account.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UsersService {
@@ -125,6 +130,111 @@ export class UsersService {
 
   async findById(id: string): Promise<User | null> {
     return this.usersRepository.findOne({ where: { id } });
+  }
+
+  async updateOwnProfile(
+    userId: string,
+    input: UpdateProfileDto,
+  ): Promise<PublicUser> {
+    try {
+      return await this.usersRepository.manager.transaction(async (manager) => {
+        const user = await manager.findOne(User, {
+          where: { id: userId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!user) {
+          throw new UnauthorizedException();
+        }
+
+        const name =
+          input.name === undefined ? user.name : normalizeName(input.name);
+        const email =
+          input.email === undefined ? user.email : normalizeEmail(input.email);
+        const emailChanged = email !== user.email;
+        const profileChanged = name !== user.name || emailChanged;
+
+        if (!profileChanged) {
+          return this.toPublicUser(user);
+        }
+
+        user.name = name;
+        user.email = email;
+        const updatedUser = await manager.save(user);
+        if (emailChanged) {
+          await manager.delete(PasswordResetToken, { userId });
+        }
+        return this.toPublicUser(updatedUser);
+      });
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        throw new ConflictException('Email is already registered');
+      }
+      throw error;
+    }
+  }
+
+  async changeOwnPassword(
+    userId: string,
+    input: ChangePasswordDto,
+  ): Promise<void> {
+    await this.usersRepository.manager.transaction(async (manager) => {
+      const user = await manager.findOne(User, {
+        where: { id: userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!user) {
+        throw new UnauthorizedException();
+      }
+      if (!(await bcrypt.compare(input.currentPassword, user.passwordHash))) {
+        throw new BadRequestException('Invalid current password');
+      }
+      try {
+        validatePasswordPolicy(input.newPassword);
+      } catch (error) {
+        throw new BadRequestException(
+          error instanceof Error ? error.message : 'Invalid password',
+        );
+      }
+
+      user.passwordHash = await bcrypt.hash(
+        input.newPassword,
+        this.config.get('BCRYPT_ROUNDS', { infer: true }),
+      );
+      await manager.save(user);
+      await manager.delete(PasswordResetToken, { userId });
+    });
+  }
+
+  async deleteOwnAccount(
+    userId: string,
+    input: DeleteAccountDto,
+  ): Promise<void> {
+    await this.usersRepository.manager.transaction(async (manager) => {
+      const administrators = await manager
+        .getRepository(User)
+        .createQueryBuilder('user')
+        .setLock('pessimistic_write')
+        .where('user.role = :role', { role: UserRole.ADMIN })
+        .orderBy('user.id', 'ASC')
+        .getMany();
+      const user =
+        administrators.find((administrator) => administrator.id === userId) ??
+        (await manager.findOne(User, {
+          where: { id: userId },
+          lock: { mode: 'pessimistic_write' },
+        }));
+      if (!user) {
+        throw new UnauthorizedException();
+      }
+      if (!(await bcrypt.compare(input.password, user.passwordHash))) {
+        throw new BadRequestException('Invalid current password');
+      }
+      if (user.role === UserRole.ADMIN && administrators.length === 1) {
+        throw new ConflictException('Cannot delete the last administrator');
+      }
+
+      await manager.remove(user);
+    });
   }
 
   toPublicUser(user: User): PublicUser {
