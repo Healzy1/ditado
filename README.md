@@ -59,6 +59,30 @@ Para encerrar sem excluir os dados:
 docker compose down
 ```
 
+## Bootstrap do primeiro administrador
+
+O cadastro publico nunca cria administradores. Com o PostgreSQL em execucao,
+defina os valores somente no ambiente do terminal e execute o procedimento:
+
+```bash
+cd backend
+export ADMIN_NAME="Administrador"
+export ADMIN_EMAIL="admin@localhost.test"
+export ADMIN_PASSWORD="senha-local-com-pelo-menos-12-caracteres"
+npm run bootstrap:admin
+```
+
+O comando normaliza nome e e-mail, valida a senha antes de gerar o hash bcrypt
+e cria a conta com `role = admin`. Nunca versione os valores de `ADMIN_*` nem
+os inclua em logs.
+
+- Ao encontrar o mesmo e-mail já associado a um administrador, o comando é
+  idempotente e não altera dados nem credenciais.
+- Ao encontrar o mesmo e-mail em uma conta `user`, o comando falha e não a
+  promove.
+- As variáveis `ADMIN_*` só são necessárias ao executar esse comando; sua
+  ausência não impede a inicialização normal do backend.
+
 ## Desenvolvimento
 
 Inicie o backend em um terminal:
@@ -101,4 +125,4 @@ npm run lint
 npm run build
 ```
 
-O frontend ainda nao possui framework ou script de testes. A documentacao operacional completa, o bootstrap administrativo e os scripts `start.sh` e `stop.sh` pertencem a etapas posteriores.
+O frontend ainda nao possui framework ou script de testes. A documentacao operacional completa e os scripts `start.sh` e `stop.sh` pertencem a etapas posteriores.
