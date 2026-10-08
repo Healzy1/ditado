@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { PublicConfigController } from './config/public-config.controller';
 import { createTypeOrmOptions } from './config/typeorm.config';
 import { validateEnvironment } from './config/environment';
+import { TranscriptionsModule } from './transcriptions/transcriptions.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -20,6 +21,7 @@ import { UsersModule } from './users/users.module';
       inject: [ConfigService],
     }),
     UsersModule,
+    TranscriptionsModule,
   ],
   controllers: [PublicConfigController],
 })

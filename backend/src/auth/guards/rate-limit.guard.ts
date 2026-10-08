@@ -33,7 +33,7 @@ export class RateLimitGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
     const origin = request.ip || 'unknown';
-    const key = this.keyFor(kind, origin, request.body);
+    const key = this.keyFor(kind, origin, request.body, request.user);
     if (!key) {
       return true;
     }
@@ -41,13 +41,19 @@ export class RateLimitGuard implements CanActivate {
     const retryAfter = this.rateLimitService.consume(
       key,
       this.config.get(
-        kind === 'login' ? 'RATE_LIMIT_LOGIN_MAX' : 'RATE_LIMIT_REGISTER_MAX',
+        kind === 'login'
+          ? 'RATE_LIMIT_LOGIN_MAX'
+          : kind === 'register'
+            ? 'RATE_LIMIT_REGISTER_MAX'
+            : 'RATE_LIMIT_TRANSCRIPTION_MAX',
         { infer: true },
       ),
       this.config.get(
         kind === 'login'
           ? 'RATE_LIMIT_LOGIN_WINDOW_SECONDS'
-          : 'RATE_LIMIT_REGISTER_WINDOW_SECONDS',
+          : kind === 'register'
+            ? 'RATE_LIMIT_REGISTER_WINDOW_SECONDS'
+            : 'RATE_LIMIT_TRANSCRIPTION_WINDOW_SECONDS',
         { infer: true },
       ),
     );
@@ -63,9 +69,19 @@ export class RateLimitGuard implements CanActivate {
     kind: RateLimitKind,
     origin: string,
     body: unknown,
+    user: unknown,
   ): string | undefined {
     if (kind === 'register') {
       return `register:${origin}`;
+    }
+
+    if (kind === 'transcription') {
+      return user &&
+        typeof user === 'object' &&
+        'id' in user &&
+        typeof user.id === 'string'
+        ? `transcription:${user.id}`
+        : undefined;
     }
 
     if (!body || typeof body !== 'object' || Array.isArray(body)) {

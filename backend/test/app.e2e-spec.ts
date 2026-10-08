@@ -11,18 +11,25 @@ import { PasswordResetToken } from '../src/auth/entities/password-reset-token.en
 import { UserRole } from '../src/common/enums/user-role.enum';
 import type { EnvironmentVariables } from '../src/config/environment';
 import { Transcription } from '../src/transcriptions/entities/transcription.entity';
+import { GroqTranscriptionClient } from '../src/transcriptions/groq-transcription.client';
 import { User } from '../src/users/entities/user.entity';
 
 describe('Application foundation (e2e)', () => {
   let app: INestApplication;
   let server: Server;
   let dataSource: DataSource;
+  const groq = {
+    transcribe: jest.fn<Promise<string>, [Express.Multer.File, string]>(),
+  };
   const fixtureUserIds: string[] = [];
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(GroqTranscriptionClient)
+      .useValue(groq)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     configureApplication(
@@ -288,5 +295,121 @@ describe('Application foundation (e2e)', () => {
         where: { role: UserRole.ADMIN },
       }),
     ).resolves.toBeGreaterThanOrEqual(1);
+  });
+
+  it('creates, lists, retrieves, and deletes only the caller transcriptions', async () => {
+    const password = 'senha-e2e-transcription-123';
+    const owner = await createUser(
+      `e2e-transcription-owner-${Date.now()}@example.test`,
+      password,
+    );
+    const otherUser = await createUser(
+      `e2e-transcription-other-${Date.now()}@example.test`,
+      password,
+    );
+    const [ownerToken, otherToken] = await Promise.all([
+      login(owner.email, password),
+      login(otherUser.email, password),
+    ]);
+    groq.transcribe.mockResolvedValueOnce('Texto transcrito');
+
+    await request(server).get('/api/transcriptions').expect(401);
+    const createResponse = await request(server)
+      .post('/api/transcriptions')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .field('language', 'pt')
+      .attach('file', Buffer.from('controlled audio'), {
+        filename: 'controlled.mp3',
+        contentType: 'audio/mpeg',
+      })
+      .expect(201);
+
+    expect(createResponse.body).toMatchObject({
+      text: 'Texto transcrito',
+      originalFilename: 'controlled.mp3',
+      language: 'pt',
+    });
+    expect(createResponse.body).not.toHaveProperty('userId');
+    expect(groq.transcribe).toHaveBeenCalledTimes(1);
+    const transcriptionId = (createResponse.body as { id: string }).id;
+
+    await request(server)
+      .get('/api/transcriptions')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200)
+      .expect(({ body }) => expect(body).toHaveLength(1));
+    await request(server)
+      .get(`/api/transcriptions/${transcriptionId}`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .expect(404);
+    await request(server)
+      .delete(`/api/transcriptions/${transcriptionId}`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .expect(404);
+    await request(server)
+      .delete(`/api/transcriptions/${transcriptionId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(204);
+  });
+
+  it('rejects invalid transcription input before calling Groq', async () => {
+    const password = 'senha-e2e-transcription-invalid-123';
+    const user = await createUser(
+      `e2e-transcription-invalid-${Date.now()}@example.test`,
+      password,
+    );
+    const token = await login(user.email, password);
+    groq.transcribe.mockClear();
+
+    await request(server)
+      .post('/api/transcriptions')
+      .set('Authorization', `Bearer ${token}`)
+      .field('language', 'zz')
+      .attach('file', Buffer.from('controlled audio'), {
+        filename: 'controlled.mp3',
+        contentType: 'audio/mpeg',
+      })
+      .expect(400);
+    await request(server)
+      .post('/api/transcriptions')
+      .set('Authorization', `Bearer ${token}`)
+      .field('language', 'pt')
+      .attach('file', Buffer.from('controlled text'), {
+        filename: 'controlled.txt',
+        contentType: 'text/plain',
+      })
+      .expect(400);
+
+    expect(groq.transcribe).not.toHaveBeenCalled();
+  });
+
+  it('rejects audio larger than 25 MiB before calling Groq or persisting', async () => {
+    const password = 'senha-e2e-transcription-large-123';
+    const user = await createUser(
+      `e2e-transcription-large-${Date.now()}@example.test`,
+      password,
+    );
+    const token = await login(user.email, password);
+    const initialCount = await dataSource.getRepository(Transcription).count({
+      where: { userId: user.id },
+    });
+    groq.transcribe.mockClear();
+
+    await request(server)
+      .post('/api/transcriptions')
+      .set('Authorization', `Bearer ${token}`)
+      .field('language', 'pt')
+      .attach('file', Buffer.alloc(25 * 1024 * 1024 + 1), {
+        filename: 'too-large.ogg',
+        contentType: 'audio/ogg',
+      })
+      .expect(413);
+
+    expect(groq.transcribe).not.toHaveBeenCalled();
+    await expect(
+      dataSource.getRepository(Transcription).count({
+        where: { userId: user.id },
+      }),
+    ).resolves.toBe(initialCount);
   });
 });

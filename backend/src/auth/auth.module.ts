@@ -33,6 +33,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     RateLimitGuard,
     RateLimitService,
   ],
-  exports: [JwtAuthGuard],
+  exports: [JwtAuthGuard, RateLimitGuard, RateLimitService],
 })
 export class AuthModule {}

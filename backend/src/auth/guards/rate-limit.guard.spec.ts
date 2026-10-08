@@ -4,23 +4,29 @@ import type { EnvironmentVariables } from '../../config/environment';
 import { RateLimitService } from '../rate-limit.service';
 import { RateLimitGuard } from './rate-limit.guard';
 
-function createGuard(kind: 'login' | 'register', max = 2) {
+function createGuard(kind: 'login' | 'register' | 'transcription', max = 2) {
   const reflector = { getAllAndOverride: jest.fn().mockReturnValue(kind) };
   const config = new ConfigService<EnvironmentVariables, true>({
     RATE_LIMIT_LOGIN_MAX: max,
     RATE_LIMIT_LOGIN_WINDOW_SECONDS: 900,
     RATE_LIMIT_REGISTER_MAX: max,
     RATE_LIMIT_REGISTER_WINDOW_SECONDS: 3600,
+    RATE_LIMIT_TRANSCRIPTION_MAX: max,
+    RATE_LIMIT_TRANSCRIPTION_WINDOW_SECONDS: 3600,
   } as EnvironmentVariables);
   return new RateLimitGuard(reflector as never, new RateLimitService(), config);
 }
 
-function context(body: unknown, headers: Record<string, string>) {
+function context(
+  body: unknown,
+  headers: Record<string, string>,
+  user?: { id: string },
+) {
   return {
     getHandler: () => undefined,
     getClass: () => undefined,
     switchToHttp: () => ({
-      getRequest: () => ({ ip: '127.0.0.1', body }),
+      getRequest: () => ({ ip: '127.0.0.1', body, user }),
       getResponse: () => ({
         setHeader: (key: string, value: string) => (headers[key] = value),
       }),
@@ -71,6 +77,22 @@ describe('RateLimitGuard', () => {
     expect(() => guard.canActivate(context({}, headers) as never)).toThrow(
       HttpException,
     );
+    expect(headers['Retry-After']).toMatch(/^\d+$/);
+  });
+
+  it('limits transcriptions independently for each authenticated user', () => {
+    const guard = createGuard('transcription', 1);
+    const headers: Record<string, string> = {};
+
+    expect(
+      guard.canActivate(context({}, headers, { id: 'first-user' }) as never),
+    ).toBe(true);
+    expect(
+      guard.canActivate(context({}, headers, { id: 'second-user' }) as never),
+    ).toBe(true);
+    expect(() =>
+      guard.canActivate(context({}, headers, { id: 'first-user' }) as never),
+    ).toThrow(HttpException);
     expect(headers['Retry-After']).toMatch(/^\d+$/);
   });
 });
