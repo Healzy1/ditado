@@ -2,6 +2,7 @@ import axios, { type AxiosError } from 'axios'
 import { endSession } from './session-lifecycle'
 import { useAuthStore } from '../store/auth-store'
 import type { LoginInput, LoginResponse, PublicConfig, PublicUser, RegisterInput } from '../types/auth'
+import type { PublicTranscription } from '../types/transcription'
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -52,6 +53,22 @@ export async function getCurrentUser(): Promise<PublicUser> {
   })).data
 }
 
+export async function createTranscription(input: FormData): Promise<PublicTranscription> {
+  return (await api.post<PublicTranscription>('/transcriptions', input, { requiresAuth: true })).data
+}
+
+export async function getTranscriptions(): Promise<PublicTranscription[]> {
+  return (await api.get<PublicTranscription[]>('/transcriptions', { requiresAuth: true })).data
+}
+
+export async function getTranscription(id: string): Promise<PublicTranscription> {
+  return (await api.get<PublicTranscription>(`/transcriptions/${id}`, { requiresAuth: true })).data
+}
+
+export async function deleteTranscription(id: string): Promise<void> {
+  await api.delete(`/transcriptions/${id}`, { requiresAuth: true })
+}
+
 export function getApiErrorMessage(error: unknown): string {
   if (axios.isAxiosError<ApiErrorBody>(error)) {
     const message = error.response?.data.message
@@ -63,4 +80,8 @@ export function getApiErrorMessage(error: unknown): string {
     }
   }
   return 'Não foi possível concluir a solicitação. Tente novamente.'
+}
+
+export function getApiErrorStatus(error: unknown): number | undefined {
+  return axios.isAxiosError(error) ? error.response?.status : undefined
 }
