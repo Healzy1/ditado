@@ -17,7 +17,7 @@ export function LoginPage() {
   const accessToken = useAuthStore((state) => state.accessToken)
   const sessionStatus = useAuthStore((state) => state.sessionStatus)
   const setSession = useAuthStore((state) => state.setSession)
-  useQuery({ queryKey: ['public-config'], queryFn: getPublicConfig })
+  const publicConfigQuery = useQuery({ queryKey: ['public-config'], queryFn: getPublicConfig })
   const { handleSubmit, register, setError, formState: { errors, isSubmitting } } = useForm<LoginInput>()
   const [requestError, setRequestError] = useState<string | null>(null)
 
@@ -62,6 +62,11 @@ export function LoginPage() {
       <p className="mt-8 text-sm text-slate-500">
         Ainda não tem conta? <Link className="font-semibold text-teal-700 hover:text-teal-600" to="/register">Cadastre-se</Link>
       </p>
+      {publicConfigQuery.data?.passwordResetEnabled ? (
+        <p className="mt-4 text-sm text-slate-500">
+          <Link className="font-semibold text-teal-700 hover:text-teal-600" to="/forgot-password">Esqueci minha senha</Link>
+        </p>
+      ) : null}
     </AuthShell>
   )
 }

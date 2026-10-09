@@ -12,6 +12,19 @@ export interface LoginInput {
   password: string
 }
 
+export interface ForgotPasswordInput {
+  email: string
+}
+
+export interface ForgotPasswordResponse {
+  message: string
+}
+
+export interface ResetPasswordInput {
+  token: string
+  newPassword: string
+}
+
 export interface RegisterInput extends LoginInput {
   name: string
 }

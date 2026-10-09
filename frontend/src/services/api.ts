@@ -1,7 +1,7 @@
 import axios, { type AxiosError } from 'axios'
 import { endSession } from './session-lifecycle'
 import { useAuthStore } from '../store/auth-store'
-import type { ChangePasswordInput, DeleteAccountInput, LoginInput, LoginResponse, PublicConfig, PublicUser, RegisterInput, UpdateProfileInput } from '../types/auth'
+import type { ChangePasswordInput, DeleteAccountInput, ForgotPasswordInput, ForgotPasswordResponse, LoginInput, LoginResponse, PublicConfig, PublicUser, RegisterInput, ResetPasswordInput, UpdateProfileInput } from '../types/auth'
 import type { PublicTranscription } from '../types/transcription'
 
 declare module 'axios' {
@@ -44,6 +44,14 @@ export async function register(input: RegisterInput): Promise<PublicUser> {
 
 export async function login(input: LoginInput): Promise<LoginResponse> {
   return (await api.post<LoginResponse>('/auth/login', input)).data
+}
+
+export async function forgotPassword(input: ForgotPasswordInput): Promise<ForgotPasswordResponse> {
+  return (await api.post<ForgotPasswordResponse>('/auth/forgot-password', input)).data
+}
+
+export async function resetPassword(input: ResetPasswordInput): Promise<void> {
+  await api.post('/auth/reset-password', input)
 }
 
 export async function getCurrentUser(): Promise<PublicUser> {

@@ -4,10 +4,12 @@ import { ProtectedRoute } from './components/session/protected-route'
 import { SessionBootstrap } from './components/session/session-bootstrap'
 import { AppHomePage } from './pages/app-home-page'
 import { HistoryPage } from './pages/history-page'
+import { ForgotPasswordPage } from './pages/forgot-password-page'
 import { LandingPage } from './pages/landing-page'
 import { LoginPage } from './pages/login-page'
 import { ProfilePage } from './pages/profile-page'
 import { RegisterPage } from './pages/register-page'
+import { ResetPasswordPage } from './pages/reset-password-page'
 import { TranscriptionDetailPage } from './pages/transcription-detail-page'
 
 function App() {
@@ -17,6 +19,8 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route
           path="/app"
           element={
