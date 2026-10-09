@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { FileAudio, Upload } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -34,6 +34,7 @@ export function AppHomePage() {
   const [languageError, setLanguageError] = useState<string | null>(null)
   const [created, setCreated] = useState<PublicTranscription | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const languageSelectorRef = useRef<HTMLDivElement>(null)
   const listQuery = useQuery({ queryKey: ['transcriptions'], queryFn: getTranscriptions })
   const createMutation = useMutation({
     mutationFn: createTranscription,
@@ -76,6 +77,17 @@ export function AppHomePage() {
   const normalizedLanguageQuery = normalizeLanguageName(languageQuery)
   const filteredLanguages = languages.filter((item) => normalizeLanguageName(item.name).includes(normalizedLanguageQuery))
   const visibleLanguages = languageQuery ? filteredLanguages : languages.filter((item) => preferredLanguageCodes.includes(item.code))
+
+  useEffect(() => {
+    function closeLanguageList(event: PointerEvent) {
+      if (!languageSelectorRef.current?.contains(event.target as Node)) {
+        setLanguageListOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', closeLanguageList)
+    return () => document.removeEventListener('pointerdown', closeLanguageList)
+  }, [])
 
   function selectLanguage(code: string) {
     const selectedLanguage = languages.find((item) => item.code === code)
@@ -157,7 +169,7 @@ export function AppHomePage() {
         <FileAudio className="text-teal-300" size={32} />
         <p className="mt-8 font-mono text-xs uppercase tracking-[0.25em] text-teal-300">Nova transcrição</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Transforme um áudio em texto.</h1>
-        <form className="mt-8 grid gap-6 lg:grid-cols-[1fr_12rem_auto] lg:items-end" onSubmit={submit}>
+        <form className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)] lg:items-start" onSubmit={submit}>
           <div className="block text-sm font-medium text-slate-300">
             <span className="block">Arquivo de áudio</span>
             <input accept=".mp3,.m4a,.wav,.ogg,.webm,.flac,.mp4,.mpeg,audio/*,video/mp4,video/webm" aria-describedby="audio-file-help audio-file-error" aria-invalid={Boolean(fileError)} className="peer sr-only" id="audio-file" onChange={(event) => selectFile(event.target.files?.[0])} ref={fileInputRef} type="file" />
@@ -166,14 +178,16 @@ export function AppHomePage() {
             <span className="mt-2 block min-w-0 truncate text-xs text-slate-400" title={file?.name}>{file ? file.name : 'Nenhum arquivo selecionado.'}</span>
             {fileError ? <span className="mt-2 block text-sm text-rose-300" id="audio-file-error">{fileError}</span> : null}
           </div>
-          <div className="relative block text-sm font-medium text-slate-300">
+          <div className="relative block text-sm font-medium text-slate-300" ref={languageSelectorRef}>
             <label htmlFor="language-search">Idioma falado no áudio</label>
             <input aria-activedescendant={languageListOpen && visibleLanguages[activeLanguageIndex] ? `language-${visibleLanguages[activeLanguageIndex].code}` : undefined} aria-autocomplete="list" aria-controls="language-options" aria-describedby="language-help language-error" aria-expanded={languageListOpen} aria-invalid={Boolean(languageError)} aria-required="true" className="input mt-2.5" id="language-search" onChange={(event) => changeLanguageQuery(event.target.value)} onFocus={() => setLanguageListOpen(true)} onKeyDown={navigateLanguageList} placeholder="Pesquise ou selecione um idioma" role="combobox" value={languageQuery} />
             {languageListOpen ? <ul className="absolute z-10 mt-2 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 p-1 shadow-xl shadow-slate-950/50" id="language-options" role="listbox">{visibleLanguages.length > 0 ? visibleLanguages.map((item, index) => <li aria-selected={item.code === language} className={`cursor-pointer rounded-lg px-3 py-2 text-sm ${index === activeLanguageIndex ? 'bg-teal-300 text-slate-950' : 'text-slate-200 hover:bg-slate-800'}`} id={`language-${item.code}`} key={item.code} onMouseDown={(event) => { event.preventDefault(); selectLanguage(item.code) }} role="option">{item.name}</li>) : <li className="px-3 py-2 text-sm text-slate-400" role="option">Nenhum idioma encontrado.</li>}</ul> : null}
             <span className="mt-2 block text-xs leading-5 text-slate-500" id="language-help">Digite parte do nome ou escolha uma opção da lista.</span>
             {languageError ? <span className="mt-2 block text-sm text-rose-300" id="language-error">{languageError}</span> : null}
+            <div className="mt-5 flex lg:justify-end">
+              <button className="primary-button w-full gap-2 lg:w-auto" disabled={createMutation.isPending} type="submit"><Upload size={18} />{createMutation.isPending ? 'Processando...' : 'Transcrever'}</button>
+            </div>
           </div>
-          <button className="primary-button gap-2" disabled={createMutation.isPending} type="submit"><Upload size={18} />{createMutation.isPending ? 'Processando...' : 'Transcrever'}</button>
         </form>
         {createMutation.isError ? <p className="error-message mt-6">{getApiErrorMessage(createMutation.error)}</p> : null}
         {created ? <section className="mt-8 rounded-2xl border border-teal-400/30 bg-teal-300/10 p-6"><p className="text-sm font-semibold text-teal-200">Transcrição concluída</p><p className="mt-3 whitespace-pre-wrap leading-7 text-slate-100">{created.text}</p></section> : null}
