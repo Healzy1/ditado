@@ -15,6 +15,7 @@ export function AppLayout() {
             <nav className="flex items-center gap-3 text-sm text-slate-400" aria-label="Navegação da área interna">
               <NavLink className={({ isActive }) => isActive ? 'font-semibold text-teal-200' : 'hover:text-white'} end to="/app">Início</NavLink>
               <NavLink className={({ isActive }) => isActive ? 'font-semibold text-teal-200' : 'hover:text-white'} to="/app/history">Histórico</NavLink>
+              <NavLink className={({ isActive }) => isActive ? 'font-semibold text-teal-200' : 'hover:text-white'} to="/app/profile">Perfil</NavLink>
             </nav>
           </div>
           <div className="flex items-center gap-3">

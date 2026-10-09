@@ -6,6 +6,7 @@ import { AppHomePage } from './pages/app-home-page'
 import { HistoryPage } from './pages/history-page'
 import { LandingPage } from './pages/landing-page'
 import { LoginPage } from './pages/login-page'
+import { ProfilePage } from './pages/profile-page'
 import { RegisterPage } from './pages/register-page'
 import { TranscriptionDetailPage } from './pages/transcription-detail-page'
 
@@ -26,6 +27,7 @@ function App() {
         >
           <Route index element={<AppHomePage />} />
           <Route path="history" element={<HistoryPage />} />
+          <Route path="profile" element={<ProfilePage />} />
           <Route path="transcriptions/:id" element={<TranscriptionDetailPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

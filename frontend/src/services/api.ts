@@ -1,7 +1,7 @@
 import axios, { type AxiosError } from 'axios'
 import { endSession } from './session-lifecycle'
 import { useAuthStore } from '../store/auth-store'
-import type { LoginInput, LoginResponse, PublicConfig, PublicUser, RegisterInput } from '../types/auth'
+import type { ChangePasswordInput, DeleteAccountInput, LoginInput, LoginResponse, PublicConfig, PublicUser, RegisterInput, UpdateProfileInput } from '../types/auth'
 import type { PublicTranscription } from '../types/transcription'
 
 declare module 'axios' {
@@ -51,6 +51,18 @@ export async function getCurrentUser(): Promise<PublicUser> {
     requiresAuth: true,
     timeout: 10_000,
   })).data
+}
+
+export async function updateProfile(input: UpdateProfileInput): Promise<PublicUser> {
+  return (await api.patch<PublicUser>('/users/me', input, { requiresAuth: true })).data
+}
+
+export async function changePassword(input: ChangePasswordInput): Promise<void> {
+  await api.patch('/users/me/password', input, { requiresAuth: true })
+}
+
+export async function deleteAccount(input: DeleteAccountInput): Promise<void> {
+  await api.delete('/users/me', { data: input, requiresAuth: true })
 }
 
 export async function createTranscription(input: FormData): Promise<PublicTranscription> {

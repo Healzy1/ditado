@@ -16,6 +16,20 @@ export interface RegisterInput extends LoginInput {
   name: string
 }
 
+export interface UpdateProfileInput {
+  name: string
+  email: string
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string
+  newPassword: string
+}
+
+export interface DeleteAccountInput {
+  password: string
+}
+
 export interface LoginResponse {
   user: PublicUser
   accessToken: string
