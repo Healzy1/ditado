@@ -4,13 +4,26 @@ import type { EnvironmentVariables } from '../../config/environment';
 import { RateLimitService } from '../rate-limit.service';
 import { RateLimitGuard } from './rate-limit.guard';
 
-function createGuard(kind: 'login' | 'register' | 'transcription', max = 2) {
+function createGuard(
+  kind:
+    | 'login'
+    | 'register'
+    | 'forgot-password'
+    | 'reset-password'
+    | 'transcription',
+  max = 2,
+) {
   const reflector = { getAllAndOverride: jest.fn().mockReturnValue(kind) };
   const config = new ConfigService<EnvironmentVariables, true>({
+    PASSWORD_RESET_ENABLED: true,
     RATE_LIMIT_LOGIN_MAX: max,
     RATE_LIMIT_LOGIN_WINDOW_SECONDS: 900,
     RATE_LIMIT_REGISTER_MAX: max,
     RATE_LIMIT_REGISTER_WINDOW_SECONDS: 3600,
+    RATE_LIMIT_FORGOT_PASSWORD_MAX: max,
+    RATE_LIMIT_FORGOT_PASSWORD_WINDOW_SECONDS: 3600,
+    RATE_LIMIT_RESET_PASSWORD_MAX: max,
+    RATE_LIMIT_RESET_PASSWORD_WINDOW_SECONDS: 900,
     RATE_LIMIT_TRANSCRIPTION_MAX: max,
     RATE_LIMIT_TRANSCRIPTION_WINDOW_SECONDS: 3600,
   } as EnvironmentVariables);
@@ -94,5 +107,53 @@ describe('RateLimitGuard', () => {
       guard.canActivate(context({}, headers, { id: 'first-user' }) as never),
     ).toThrow(HttpException);
     expect(headers['Retry-After']).toMatch(/^\d+$/);
+  });
+
+  it('shares one forgot-password counter for equivalent normalized emails', () => {
+    const guard = createGuard('forgot-password', 1);
+    const headers: Record<string, string> = {};
+
+    expect(
+      guard.canActivate(
+        context({ email: ' ANA@EXAMPLE.TEST ' }, headers) as never,
+      ),
+    ).toBe(true);
+    expect(() =>
+      guard.canActivate(
+        context({ email: 'ana@example.test' }, headers) as never,
+      ),
+    ).toThrow(HttpException);
+    expect(headers['Retry-After']).toMatch(/^\d+$/);
+  });
+
+  it('limits reset-password requests by origin without using the token', () => {
+    const guard = createGuard('reset-password', 1);
+    const headers: Record<string, string> = {};
+
+    expect(
+      guard.canActivate(context({ token: 'first' }, headers) as never),
+    ).toBe(true);
+    expect(() =>
+      guard.canActivate(context({ token: 'second' }, headers) as never),
+    ).toThrow(HttpException);
+    expect(headers['Retry-After']).toMatch(/^\d+$/);
+  });
+
+  it('does not rate limit disabled password recovery endpoints', () => {
+    const reflector = {
+      getAllAndOverride: jest.fn().mockReturnValue('forgot-password'),
+    };
+    const config = new ConfigService<EnvironmentVariables, true>({
+      PASSWORD_RESET_ENABLED: false,
+    } as EnvironmentVariables);
+    const guard = new RateLimitGuard(
+      reflector as never,
+      new RateLimitService(),
+      config,
+    );
+
+    expect(
+      guard.canActivate(context({ email: 'ana@example.test' }, {}) as never),
+    ).toBe(true);
   });
 });

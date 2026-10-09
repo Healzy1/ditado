@@ -28,6 +28,10 @@ function config(): ConfigService<EnvironmentVariables, true> {
     RATE_LIMIT_LOGIN_WINDOW_SECONDS: 900,
     RATE_LIMIT_REGISTER_MAX: 5,
     RATE_LIMIT_REGISTER_WINDOW_SECONDS: 3600,
+    RATE_LIMIT_FORGOT_PASSWORD_MAX: 5,
+    RATE_LIMIT_FORGOT_PASSWORD_WINDOW_SECONDS: 3600,
+    RATE_LIMIT_RESET_PASSWORD_MAX: 10,
+    RATE_LIMIT_RESET_PASSWORD_WINDOW_SECONDS: 900,
   } as EnvironmentVariables);
 }
 
@@ -170,7 +174,15 @@ describe('authentication HTTP integration', () => {
 
   describe('login validation', () => {
     let app: INestApplication;
-    const auth = { login: jest.fn(), register: jest.fn() };
+    const auth = {
+      login: jest.fn(),
+      register: jest.fn(),
+      forgotPassword: jest.fn().mockResolvedValue({
+        message:
+          'Se houver uma conta associada a este e-mail, serão enviadas instruções para redefinição da senha.',
+      }),
+      resetPassword: jest.fn().mockResolvedValue(undefined),
+    };
     const appConfig = config();
 
     beforeAll(async () => {
@@ -195,6 +207,8 @@ describe('authentication HTTP integration', () => {
 
     beforeEach(() => {
       auth.login.mockClear();
+      auth.forgotPassword.mockClear();
+      auth.resetPassword.mockClear();
     });
 
     it.each([
@@ -220,6 +234,38 @@ describe('authentication HTTP integration', () => {
         .send('{"email":')
         .expect(400);
       expect(auth.login).not.toHaveBeenCalled();
+    });
+
+    it('validates and routes password recovery requests', async () => {
+      await request(server(app))
+        .post('/api/auth/forgot-password')
+        .send({ email: ' ANA@EXAMPLE.TEST ' })
+        .expect(200)
+        .expect({
+          message:
+            'Se houver uma conta associada a este e-mail, serão enviadas instruções para redefinição da senha.',
+        });
+      expect(auth.forgotPassword).toHaveBeenCalledWith({
+        email: 'ana@example.test',
+      });
+
+      await request(server(app))
+        .post('/api/auth/reset-password')
+        .send({ token: 'controlled-token', newPassword: 'senha-nova-123' })
+        .expect(204);
+      expect(auth.resetPassword).toHaveBeenCalledWith({
+        token: 'controlled-token',
+        newPassword: 'senha-nova-123',
+      });
+
+      await request(server(app))
+        .post('/api/auth/forgot-password')
+        .send({ email: 'invalid' })
+        .expect(400);
+      await request(server(app))
+        .post('/api/auth/reset-password')
+        .send({ token: '', newPassword: 'senha-nova-123' })
+        .expect(400);
     });
   });
 });

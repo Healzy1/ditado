@@ -29,6 +29,12 @@ export class RateLimitGuard implements CanActivate {
     if (!kind) {
       return true;
     }
+    if (
+      (kind === 'forgot-password' || kind === 'reset-password') &&
+      !this.config.get('PASSWORD_RESET_ENABLED', { infer: true })
+    ) {
+      return true;
+    }
 
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
@@ -45,7 +51,11 @@ export class RateLimitGuard implements CanActivate {
           ? 'RATE_LIMIT_LOGIN_MAX'
           : kind === 'register'
             ? 'RATE_LIMIT_REGISTER_MAX'
-            : 'RATE_LIMIT_TRANSCRIPTION_MAX',
+            : kind === 'forgot-password'
+              ? 'RATE_LIMIT_FORGOT_PASSWORD_MAX'
+              : kind === 'reset-password'
+                ? 'RATE_LIMIT_RESET_PASSWORD_MAX'
+                : 'RATE_LIMIT_TRANSCRIPTION_MAX',
         { infer: true },
       ),
       this.config.get(
@@ -53,7 +63,11 @@ export class RateLimitGuard implements CanActivate {
           ? 'RATE_LIMIT_LOGIN_WINDOW_SECONDS'
           : kind === 'register'
             ? 'RATE_LIMIT_REGISTER_WINDOW_SECONDS'
-            : 'RATE_LIMIT_TRANSCRIPTION_WINDOW_SECONDS',
+            : kind === 'forgot-password'
+              ? 'RATE_LIMIT_FORGOT_PASSWORD_WINDOW_SECONDS'
+              : kind === 'reset-password'
+                ? 'RATE_LIMIT_RESET_PASSWORD_WINDOW_SECONDS'
+                : 'RATE_LIMIT_TRANSCRIPTION_WINDOW_SECONDS',
         { infer: true },
       ),
     );
@@ -71,8 +85,8 @@ export class RateLimitGuard implements CanActivate {
     body: unknown,
     user: unknown,
   ): string | undefined {
-    if (kind === 'register') {
-      return `register:${origin}`;
+    if (kind === 'register' || kind === 'reset-password') {
+      return `${kind}:${origin}`;
     }
 
     if (kind === 'transcription') {
@@ -93,7 +107,7 @@ export class RateLimitGuard implements CanActivate {
     }
     const normalizedEmail = normalizeEmail(email);
     return isEmail(normalizedEmail)
-      ? `login:${origin}:${normalizedEmail}`
+      ? `${kind}:${origin}:${normalizedEmail}`
       : undefined;
   }
 }

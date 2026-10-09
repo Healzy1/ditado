@@ -113,6 +113,22 @@ describe('Application foundation (e2e)', () => {
       .expect(401);
   });
 
+  it('disables password recovery without calling an external email service', async () => {
+    await request(server)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'missing@example.test' })
+      .expect(403)
+      .expect(({ body }: { body: { message?: unknown } }) =>
+        expect(body.message).toBe(
+          'Password reset is not available in this environment',
+        ),
+      );
+    await request(server)
+      .post('/api/auth/reset-password')
+      .send({ token: 'previous-token', newPassword: 'senha-nova-valida-123' })
+      .expect(403);
+  });
+
   it('updates a profile, invalidates pending tokens, and uses the new email for login', async () => {
     const password = 'senha-e2e-atual-123';
     const newEmail = `e2e-profile-new-${Date.now()}@example.test`;
