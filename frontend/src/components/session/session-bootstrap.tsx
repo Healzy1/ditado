@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getCurrentUser } from '../../services/api'
+import { synchronizeSessionIdentity } from '../../services/session-sync'
 import { useAuthStore } from '../../store/auth-store'
 
 interface SessionBootstrapProps {
@@ -12,7 +13,6 @@ export function SessionBootstrap({ children }: SessionBootstrapProps) {
   const accessToken = useAuthStore((state) => state.accessToken)
   const sessionStatus = useAuthStore((state) => state.sessionStatus)
   const setSessionStatus = useAuthStore((state) => state.setSessionStatus)
-  const setUser = useAuthStore((state) => state.setUser)
 
   useEffect(() => {
     if (rehydrated.current) {
@@ -27,17 +27,16 @@ export function SessionBootstrap({ children }: SessionBootstrapProps) {
 
   const currentUserQuery = useQuery({
     queryKey: ['session', 'current-user'],
-    queryFn: getCurrentUser,
+    queryFn: () => synchronizeSessionIdentity(getCurrentUser),
     enabled: sessionStatus === 'syncing' && Boolean(accessToken),
     retry: false,
   })
 
   useEffect(() => {
     if (currentUserQuery.isSuccess) {
-      setUser(currentUserQuery.data)
       setSessionStatus('ready')
     }
-  }, [currentUserQuery.data, currentUserQuery.isSuccess, setSessionStatus, setUser])
+  }, [currentUserQuery.isSuccess, setSessionStatus])
 
   useEffect(() => {
     if (currentUserQuery.isError && useAuthStore.getState().accessToken) {

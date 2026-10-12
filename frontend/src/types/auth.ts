@@ -7,6 +7,11 @@ export interface PublicUser {
   role: UserRole
 }
 
+export interface AdminUser extends PublicUser {
+  createdAt: string
+  updatedAt: string
+}
+
 export interface LoginInput {
   email: string
   password: string
@@ -32,6 +37,12 @@ export interface RegisterInput extends LoginInput {
 export interface UpdateProfileInput {
   name: string
   email: string
+}
+
+export interface UpdateAdminUserInput {
+  name?: string
+  email?: string
+  role?: UserRole
 }
 
 export interface ChangePasswordInput {

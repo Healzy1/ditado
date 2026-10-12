@@ -1,12 +1,14 @@
 import axios, { type AxiosError } from 'axios'
 import { endSession } from './session-lifecycle'
+import { synchronizeSessionIdentity } from './session-sync'
 import { useAuthStore } from '../store/auth-store'
-import type { ChangePasswordInput, DeleteAccountInput, ForgotPasswordInput, ForgotPasswordResponse, LoginInput, LoginResponse, PublicConfig, PublicUser, RegisterInput, ResetPasswordInput, UpdateProfileInput } from '../types/auth'
+import type { AdminUser, ChangePasswordInput, DeleteAccountInput, ForgotPasswordInput, ForgotPasswordResponse, LoginInput, LoginResponse, PublicConfig, PublicUser, RegisterInput, ResetPasswordInput, UpdateAdminUserInput, UpdateProfileInput } from '../types/auth'
 import type { PublicTranscription } from '../types/transcription'
 
 declare module 'axios' {
   interface AxiosRequestConfig {
     requiresAuth?: boolean
+    requiresAdmin?: boolean
   }
 }
 
@@ -26,10 +28,19 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
     if (error.response?.status === 401 && error.config?.requiresAuth) {
       endSession()
     }
+
+    if (error.response?.status === 403 && error.config?.requiresAdmin) {
+      try {
+        await synchronizeSessionIdentity(getCurrentUser)
+      } catch {
+        // The original administrative denial remains the public error.
+      }
+    }
+
     return Promise.reject(error)
   },
 )
@@ -87,6 +98,22 @@ export async function getTranscription(id: string): Promise<PublicTranscription>
 
 export async function deleteTranscription(id: string): Promise<void> {
   await api.delete(`/transcriptions/${id}`, { requiresAuth: true })
+}
+
+export async function getAdminUsers(): Promise<AdminUser[]> {
+  return (await api.get<AdminUser[]>('/users', { requiresAuth: true, requiresAdmin: true })).data
+}
+
+export async function getAdminUser(id: string): Promise<AdminUser> {
+  return (await api.get<AdminUser>(`/users/${id}`, { requiresAuth: true, requiresAdmin: true })).data
+}
+
+export async function updateAdminUser(id: string, input: UpdateAdminUserInput): Promise<AdminUser> {
+  return (await api.patch<AdminUser>(`/users/${id}`, input, { requiresAuth: true, requiresAdmin: true })).data
+}
+
+export async function deleteAdminUser(id: string): Promise<void> {
+  await api.delete(`/users/${id}`, { requiresAuth: true, requiresAdmin: true })
 }
 
 export function getApiErrorMessage(error: unknown): string {

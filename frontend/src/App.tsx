@@ -1,8 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './components/layout/app-layout'
+import { AdminRoute } from './components/session/admin-route'
 import { ProtectedRoute } from './components/session/protected-route'
 import { SessionBootstrap } from './components/session/session-bootstrap'
 import { AppHomePage } from './pages/app-home-page'
+import { AdminUserDetailPage } from './pages/admin-user-detail-page'
+import { AdminUsersPage } from './pages/admin-users-page'
 import { HistoryPage } from './pages/history-page'
 import { ForgotPasswordPage } from './pages/forgot-password-page'
 import { LandingPage } from './pages/landing-page'
@@ -33,6 +36,8 @@ function App() {
           <Route path="history" element={<HistoryPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="transcriptions/:id" element={<TranscriptionDetailPage />} />
+          <Route path="admin" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
+          <Route path="admin/users/:id" element={<AdminRoute><AdminUserDetailPage /></AdminRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
