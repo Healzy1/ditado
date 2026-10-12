@@ -83,9 +83,9 @@ function applyIssues(issues: z.core.$ZodIssue[], setError: ReturnType<typeof use
 export function AuthShell({ children, eyebrow, title }: { children: React.ReactNode; eyebrow: string; title: string }) {
   return (
     <main className="grid min-h-screen bg-slate-100 px-4 py-6 sm:px-8 sm:py-10 lg:place-items-center">
-      <section className="w-full max-w-xl rounded-[2rem] border border-slate-200 bg-white p-7 shadow-2xl shadow-slate-300/30 sm:p-10 lg:p-12">
+      <section className="w-full max-w-xl rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
         <Link className="text-sm font-semibold tracking-tight text-slate-900" to="/">Ditado</Link>
-        <p className="mt-10 font-mono text-xs uppercase tracking-[0.25em] text-teal-700">{eyebrow}</p>
+        <p className="mt-8 text-sm font-medium text-teal-700">{eyebrow}</p>
         <h1 className="mt-4 max-w-lg text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">{title}</h1>
         {children}
       </section>

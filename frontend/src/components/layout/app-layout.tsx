@@ -18,7 +18,7 @@ export function AppLayout() {
               aria-controls="mobile-navigation"
               aria-expanded={mobileMenuOpen}
               aria-label={mobileMenuOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-slate-700 text-slate-200 transition hover:border-teal-300 hover:text-teal-200"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-700 text-slate-200 transition hover:border-teal-300 hover:text-teal-200"
               onClick={() => setMobileMenuOpen((open) => !open)}
               type="button"
             >
@@ -30,12 +30,12 @@ export function AppLayout() {
             <NavLink className={({ isActive }) => mobileLinkClass(isActive)} onClick={() => setMobileMenuOpen(false)} to="/app/history">Histórico</NavLink>
             <NavLink className={({ isActive }) => mobileLinkClass(isActive)} onClick={() => setMobileMenuOpen(false)} to="/app/profile">Perfil</NavLink>
             {user?.role === 'admin' ? <NavLink className={({ isActive }) => mobileLinkClass(isActive)} onClick={() => setMobileMenuOpen(false)} to="/app/admin">Administração</NavLink> : null}
-            <button className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-left font-medium text-slate-200 transition hover:bg-slate-800 hover:text-white" onClick={() => endSession()} type="button"><LogOut size={16} />Sair</button>
+            <button className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-left font-medium text-slate-200 transition hover:bg-slate-800 hover:text-white" onClick={() => endSession()} type="button"><LogOut size={16} />Sair</button>
           </nav>
-          <div className="hidden items-center justify-between gap-4 sm:flex">
-            <div className="flex min-w-0 items-center gap-5">
+          <div className="hidden items-center justify-between gap-6 sm:flex">
+            <div className="flex min-w-0 items-center gap-6">
               <Link className="w-fit font-semibold tracking-tight text-white" to="/app">Ditado</Link>
-              <nav className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-400" aria-label="Navegação da área interna">
+              <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 border-l border-slate-800 pl-6 text-sm text-slate-400" aria-label="Navegação da área interna">
                 <NavLink className={({ isActive }) => isActive ? 'font-semibold text-teal-200' : 'hover:text-white'} end to="/app">Início</NavLink>
                 <NavLink className={({ isActive }) => isActive ? 'font-semibold text-teal-200' : 'hover:text-white'} to="/app/history">Histórico</NavLink>
                 <NavLink className={({ isActive }) => isActive ? 'font-semibold text-teal-200' : 'hover:text-white'} to="/app/profile">Perfil</NavLink>
@@ -43,9 +43,9 @@ export function AppLayout() {
               </nav>
             </div>
             <div className="flex items-center gap-3">
-              <p className="text-sm text-slate-400">{user?.name}</p>
+              <p className="text-sm text-slate-500">{user?.name}</p>
               <button
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-teal-300 hover:text-teal-200"
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-teal-300 hover:text-teal-200"
                 onClick={() => endSession()}
                 type="button"
               >

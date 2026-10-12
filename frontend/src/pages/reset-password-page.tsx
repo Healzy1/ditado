@@ -47,7 +47,10 @@ export function ResetPasswordPage() {
         setUnavailable(true)
         return
       }
-      setRequestError(getApiErrorMessage(error))
+      const message = getApiErrorMessage(error)
+      setRequestError(message === 'Invalid or expired password reset token'
+        ? 'O link de redefinição é inválido, expirou ou já foi utilizado.'
+        : message)
     }
   }
 
@@ -84,7 +87,7 @@ export function ResetPasswordPage() {
   return (
     <AuthShell eyebrow="Redefinir senha" title="Escolha uma nova senha para sua conta.">
       {completed ? (
-        <div className="mt-10 rounded-2xl border border-teal-100 bg-teal-50 p-6 text-sm leading-6 text-teal-900">
+        <div className="mt-8 rounded-lg border border-teal-100 bg-teal-50 p-5 text-sm leading-6 text-teal-900">
           <p>Sua senha foi redefinida. Entre com a nova senha para continuar.</p>
           <Link className="mt-3 inline-block font-semibold text-teal-800 underline" to="/login">Ir para o login</Link>
         </div>

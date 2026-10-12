@@ -165,15 +165,15 @@ export function AppHomePage() {
 
   return (
     <main className="mx-auto max-w-7xl px-5 py-10 sm:px-10 sm:py-14">
-      <section className="rounded-[2rem] border border-slate-800 bg-slate-900 p-7 shadow-2xl shadow-slate-950/30 sm:p-10">
+      <section className="rounded-xl border border-slate-800 bg-slate-900 p-6 sm:p-8">
         <FileAudio className="text-teal-300" size={32} />
-        <p className="mt-8 font-mono text-xs uppercase tracking-[0.25em] text-teal-300">Nova transcrição</p>
+        <p className="mt-6 text-sm font-medium text-teal-300">Nova transcrição</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Transforme um áudio em texto.</h1>
         <form className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)] lg:items-start" onSubmit={submit}>
           <div className="block text-sm font-medium text-slate-300">
             <span className="block">Arquivo de áudio</span>
             <input accept=".mp3,.m4a,.wav,.ogg,.webm,.flac,.mp4,.mpeg,audio/*,video/mp4,video/webm" aria-describedby="audio-file-help audio-file-error" aria-invalid={Boolean(fileError)} className="peer sr-only" id="audio-file" onChange={(event) => selectFile(event.target.files?.[0])} ref={fileInputRef} type="file" />
-            <label className="mt-2.5 inline-flex min-h-11 cursor-pointer items-center rounded-lg bg-teal-300 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-teal-200" htmlFor="audio-file">Selecionar áudio</label>
+            <label className="mt-2.5 inline-flex min-h-11 cursor-pointer items-center rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-600 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-teal-200" htmlFor="audio-file">Selecionar áudio</label>
             <span className="mt-2 block text-xs leading-5 text-slate-500" id="audio-file-help">MP3, M4A, WAV, OGG, WEBM, FLAC, MP4 ou MPEG. Máximo de 25 MB.</span>
             <span className="mt-2 block min-w-0 truncate text-xs text-slate-400" title={file?.name}>{file ? file.name : 'Nenhum arquivo selecionado.'}</span>
             {fileError ? <span className="mt-2 block text-sm text-rose-300" id="audio-file-error">{fileError}</span> : null}
@@ -190,14 +190,14 @@ export function AppHomePage() {
           </div>
         </form>
         {createMutation.isError ? <p className="error-message mt-6">{getApiErrorMessage(createMutation.error)}</p> : null}
-        {created ? <section className="mt-8 rounded-2xl border border-teal-400/30 bg-teal-300/10 p-6"><p className="text-sm font-semibold text-teal-200">Transcrição concluída</p><p className="mt-3 whitespace-pre-wrap leading-7 text-slate-100">{created.text}</p></section> : null}
+        {created ? <section className="mt-8 rounded-lg border border-teal-800 bg-teal-950/40 p-5"><p className="text-sm font-semibold text-teal-200">Transcrição concluída</p><p className="mt-3 whitespace-pre-wrap leading-7 text-slate-100">{created.text}</p></section> : null}
       </section>
 
       <section className="mt-12">
-        <div className="flex items-center justify-between gap-4"><div><p className="font-mono text-xs uppercase tracking-[0.2em] text-teal-300">Histórico recente</p><h2 className="mt-2 text-2xl font-semibold text-white">Suas últimas transcrições</h2></div><Link className="text-sm font-semibold text-teal-200 hover:text-teal-100" to="/app/history">Ver histórico completo</Link></div>
+        <div className="flex items-center justify-between gap-4"><div><p className="text-sm font-medium text-teal-300">Histórico recente</p><h2 className="mt-2 text-2xl font-semibold text-white">Suas últimas transcrições</h2></div><Link className="text-sm font-semibold text-teal-200 hover:text-teal-100" to="/app/history">Ver histórico completo</Link></div>
         {listQuery.isPending ? <p className="mt-6 text-slate-400">Carregando transcrições...</p> : null}
         {listQuery.isError ? <p className="error-message mt-6">{getApiErrorMessage(listQuery.error)}</p> : null}
-        {listQuery.isSuccess && recent.length === 0 ? <p className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-6 text-slate-400">Você ainda não possui transcrições.</p> : null}
+        {listQuery.isSuccess && recent.length === 0 ? <p className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-slate-400">Você ainda não possui transcrições.</p> : null}
         {recent.length > 0 ? <div className="mt-6"><TranscriptionList items={recent} /></div> : null}
       </section>
     </main>

@@ -55,7 +55,7 @@ export function RegisterPage() {
   return (
     <AuthShell eyebrow="Criar conta" title="Comece a organizar seus áudios.">
       {registeredEmail ? (
-        <div className="mt-10 rounded-2xl border border-teal-100 bg-teal-50 p-6 text-sm leading-6 text-teal-900">
+        <div className="mt-8 rounded-lg border border-teal-100 bg-teal-50 p-5 text-sm leading-6 text-teal-900">
           <p>Conta criada para {registeredEmail}.</p>
           <Link className="mt-3 inline-block font-semibold text-teal-800 underline" to="/login">Prosseguir para o login</Link>
         </div>

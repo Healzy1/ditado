@@ -25,7 +25,7 @@ export function DeleteTranscriptionButton({ id, onDeleted }: DeleteTranscription
 
   if (confirming) {
     return (
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-rose-900/60 bg-rose-950/30 p-3 text-sm text-rose-100">
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-rose-900/60 bg-rose-950/30 p-3 text-sm text-rose-100">
         <p>Excluir esta transcrição?</p>
         <button className="rounded-lg bg-rose-500 px-3 py-2 font-semibold text-white disabled:opacity-60" disabled={mutation.isPending} onClick={() => mutation.mutate()} type="button">
           {mutation.isPending ? 'Excluindo...' : 'Confirmar exclusão'}
