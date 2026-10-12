@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { PasswordResetToken } from '../auth/entities/password-reset-token.entity';
@@ -82,7 +87,19 @@ function createService(users: User[]) {
   manager.getRepository = jest.fn(() => ({
     createQueryBuilder: jest.fn(() => query),
   }));
-  const repository = { manager };
+  const repository = {
+    manager,
+    find: jest.fn(() => Promise.resolve(users)),
+    findOne: jest.fn(({ where }: { where: { id?: string } }) =>
+      Promise.resolve(
+        users.find(
+          (candidate) =>
+            (where.id === undefined || candidate.id === where.id) &&
+            (where.id !== undefined || candidate.email === where.email),
+        ) ?? null,
+      ),
+    ),
+  };
   const config = new ConfigService<EnvironmentVariables, true>({
     BCRYPT_ROUNDS: 10,
   } as EnvironmentVariables);
@@ -216,5 +233,71 @@ describe('UsersService account management', () => {
       service.deleteOwnAccount('admin-a', { password: 'senha-atual-123' }),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(manager.remove).not.toHaveBeenCalled();
+  });
+
+  it('updates another account and invalidates its tokens only after an email change', async () => {
+    const administrator = user({ id: 'admin-a', role: UserRole.ADMIN });
+    const target = user({ id: 'user-b' });
+    const { manager, service } = createService([administrator, target]);
+
+    await expect(
+      service.updateUserByAdmin('admin-a', 'user-b', {
+        name: ' Ana Silva ',
+        email: ' NOVA@EXAMPLE.TEST ',
+        role: UserRole.ADMIN,
+      }),
+    ).resolves.toMatchObject({
+      id: 'user-b',
+      name: 'Ana Silva',
+      email: 'nova@example.test',
+      role: UserRole.ADMIN,
+      createdAt: target.createdAt,
+      updatedAt: target.updatedAt,
+    });
+    expect(manager.save).toHaveBeenCalledWith(target);
+    expect(manager.delete).toHaveBeenCalledWith(expect.any(Function), {
+      userId: 'user-b',
+    });
+  });
+
+  it('rejects administrative self-operations before reading administrators', async () => {
+    const administrator = user({ id: 'admin-a', role: UserRole.ADMIN });
+    const { manager, service } = createService([administrator]);
+
+    await expect(
+      service.updateUserByAdmin('admin-a', 'admin-a', { name: 'Ana Silva' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.deleteUserByAdmin('admin-a', 'admin-a'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(manager.transaction).not.toHaveBeenCalled();
+  });
+
+  it('preserves the last administrator during administrative demotion or deletion', async () => {
+    const administrator = user({ id: 'admin-a', role: UserRole.ADMIN });
+    const { manager, service } = createService([administrator]);
+
+    await expect(
+      service.updateUserByAdmin('other-admin', 'admin-a', {
+        role: UserRole.USER,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    await expect(
+      service.deleteUserByAdmin('other-admin', 'admin-a'),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(manager.save).not.toHaveBeenCalled();
+    expect(manager.remove).not.toHaveBeenCalled();
+  });
+
+  it('returns not found for a missing administrative target', async () => {
+    const administrator = user({ id: 'admin-a', role: UserRole.ADMIN });
+    const { service } = createService([administrator]);
+
+    await expect(service.findOneForAdmin('missing')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(
+      service.deleteUserByAdmin('admin-a', 'missing'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

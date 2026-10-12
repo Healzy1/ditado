@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ChangePasswordDto } from './change-password.dto';
 import { DeleteAccountDto } from './delete-account.dto';
 import { UpdateProfileDto } from './update-profile.dto';
+import { UpdateUserByAdminDto } from './update-user-by-admin.dto';
 
 const pipe = new ValidationPipe({
   whitelist: true,
@@ -41,6 +42,31 @@ describe('account management DTOs', () => {
     ).rejects.toMatchObject({ status: 400 });
     await expect(
       pipe.transform({}, { type: 'body', metatype: DeleteAccountDto }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      pipe.transform(
+        { name: ' Ana ', email: ' ANA@EXAMPLE.TEST ', role: 'admin' },
+        { type: 'body', metatype: UpdateUserByAdminDto },
+      ),
+    ).resolves.toMatchObject({
+      name: 'Ana',
+      email: 'ana@example.test',
+      role: 'admin',
+    });
+    await expect(
+      pipe.transform({}, { type: 'body', metatype: UpdateUserByAdminDto }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      pipe.transform(
+        { role: 'owner' },
+        { type: 'body', metatype: UpdateUserByAdminDto },
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      pipe.transform(
+        { name: 'Ana', passwordHash: 'not-allowed' },
+        { type: 'body', metatype: UpdateUserByAdminDto },
+      ),
     ).rejects.toMatchObject({ status: 400 });
   });
 });

@@ -4,7 +4,7 @@ import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
 import * as bcrypt from 'bcryptjs';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApplication } from '../src/app.setup';
 import { PasswordResetToken } from '../src/auth/entities/password-reset-token.entity';
@@ -43,7 +43,7 @@ describe('Application foundation (e2e)', () => {
 
   afterAll(async () => {
     if (fixtureUserIds.length > 0) {
-      await dataSource.getRepository(User).delete(fixtureUserIds);
+      await dataSource.getRepository(User).delete({ id: In(fixtureUserIds) });
     }
     await app.close();
   });
@@ -71,6 +71,22 @@ describe('Application foundation (e2e)', () => {
       .send({ email, password })
       .expect(200);
     return (response.body as { accessToken: string }).accessToken;
+  }
+
+  function expectAdministrativeUser(
+    value: Record<string, unknown>,
+    expected: Partial<Record<string, unknown>> = {},
+  ): void {
+    expect(Object.keys(value).sort()).toEqual([
+      'createdAt',
+      'email',
+      'id',
+      'name',
+      'role',
+      'updatedAt',
+    ]);
+    expect(value).toMatchObject(expected);
+    expect(value).not.toHaveProperty('passwordHash');
   }
 
   it('returns a safe 404 under the global API prefix', async () => {
@@ -310,6 +326,268 @@ describe('Application foundation (e2e)', () => {
       dataSource.getRepository(User).count({
         where: { role: UserRole.ADMIN },
       }),
+    ).resolves.toBeGreaterThanOrEqual(1);
+  });
+
+  it('enforces administrative user management contracts', async () => {
+    const password = 'senha-e2e-admin-contract-123';
+    const suffix = Date.now();
+    const ordinary = await createUser(
+      `e2e-admin-ordinary-${suffix}@example.test`,
+      password,
+    );
+    const administrator = await createUser(
+      `e2e-admin-manager-${suffix}@example.test`,
+      password,
+      UserRole.ADMIN,
+    );
+    const otherAdministrator = await createUser(
+      `e2e-admin-other-${suffix}@example.test`,
+      password,
+      UserRole.ADMIN,
+    );
+    const target = await createUser(
+      `e2e-admin-target-${suffix}@example.test`,
+      password,
+    );
+    const duplicate = await createUser(
+      `e2e-admin-duplicate-${suffix}@example.test`,
+      password,
+    );
+    await dataSource.getRepository(PasswordResetToken).save({
+      tokenHash: 'controlled-admin-token-hash',
+      userId: target.id,
+    });
+    const [ordinaryToken, administratorToken, otherAdministratorToken] =
+      await Promise.all([
+        login(ordinary.email, password),
+        login(administrator.email, password),
+        login(otherAdministrator.email, password),
+      ]);
+
+    await request(server).get('/api/users').expect(401);
+    await request(server)
+      .get('/api/users')
+      .set('Authorization', 'Bearer invalid-token')
+      .expect(401);
+    for (const requestBuilder of [
+      () => request(server).get('/api/users'),
+      () => request(server).get(`/api/users/${target.id}`),
+      () =>
+        request(server).patch(`/api/users/${target.id}`).send({ name: 'Nova' }),
+      () => request(server).delete(`/api/users/${target.id}`),
+    ]) {
+      await requestBuilder()
+        .set('Authorization', `Bearer ${ordinaryToken}`)
+        .expect(403);
+    }
+
+    const listResponse = await request(server)
+      .get('/api/users')
+      .set('Authorization', `Bearer ${administratorToken}`)
+      .expect(200);
+    expect(Array.isArray(listResponse.body)).toBe(true);
+    const listedAdministrator = (
+      listResponse.body as Record<string, unknown>[]
+    ).find((candidate) => candidate.id === administrator.id);
+    expect(listedAdministrator).toBeDefined();
+    expectAdministrativeUser(listedAdministrator as Record<string, unknown>, {
+      id: administrator.id,
+      role: UserRole.ADMIN,
+    });
+
+    const detailResponse = await request(server)
+      .get(`/api/users/${administrator.id}`)
+      .set('Authorization', `Bearer ${administratorToken}`)
+      .expect(200);
+    expectAdministrativeUser(detailResponse.body as Record<string, unknown>, {
+      id: administrator.id,
+      email: administrator.email,
+    });
+    await request(server)
+      .get('/api/users/00000000-0000-0000-0000-000000000000')
+      .set('Authorization', `Bearer ${administratorToken}`)
+      .expect(404);
+    await request(server)
+      .patch('/api/users/00000000-0000-0000-0000-000000000000')
+      .set('Authorization', `Bearer ${administratorToken}`)
+      .send({ name: 'Missing user' })
+      .expect(404);
+    await request(server)
+      .delete('/api/users/00000000-0000-0000-0000-000000000000')
+      .set('Authorization', `Bearer ${administratorToken}`)
+      .expect(404);
+
+    await request(server)
+      .patch(`/api/users/${target.id}`)
+      .set('Authorization', `Bearer ${administratorToken}`)
+      .send({})
+      .expect(400);
+    await request(server)
+      .patch(`/api/users/${target.id}`)
+      .set('Authorization', `Bearer ${administratorToken}`)
+      .send({ name: 'Ana', passwordHash: 'not-allowed' })
+      .expect(400);
+    await request(server)
+      .patch(`/api/users/${target.id}`)
+      .set('Authorization', `Bearer ${administratorToken}`)
+      .send({ email: duplicate.email })
+      .expect(409);
+
+    const updatedEmail = `e2e-admin-target-updated-${suffix}@example.test`;
+    const updateResponse = await request(server)
+      .patch(`/api/users/${target.id}`)
+      .set('Authorization', `Bearer ${administratorToken}`)
+      .send({
+        name: '  E2E Admin Updated  ',
+        email: ` ${updatedEmail.toUpperCase()} `,
+        role: UserRole.ADMIN,
+      })
+      .expect(200);
+    expectAdministrativeUser(updateResponse.body as Record<string, unknown>, {
+      id: target.id,
+      name: 'E2E Admin Updated',
+      email: updatedEmail,
+      role: UserRole.ADMIN,
+    });
+    await expect(
+      dataSource.getRepository(PasswordResetToken).count({
+        where: { userId: target.id },
+      }),
+    ).resolves.toBe(0);
+
+    await request(server)
+      .patch(`/api/users/${administrator.id}`)
+      .set('Authorization', `Bearer ${administratorToken}`)
+      .send({ role: UserRole.USER })
+      .expect(403);
+    await request(server)
+      .delete(`/api/users/${administrator.id}`)
+      .set('Authorization', `Bearer ${administratorToken}`)
+      .expect(403);
+
+    await request(server)
+      .patch(`/api/users/${otherAdministrator.id}`)
+      .set('Authorization', `Bearer ${administratorToken}`)
+      .send({ role: UserRole.USER })
+      .expect(200);
+    await request(server)
+      .get('/api/users')
+      .set('Authorization', `Bearer ${otherAdministratorToken}`)
+      .expect(403);
+  });
+
+  it('deletes another account with its dependent records', async () => {
+    const password = 'senha-e2e-admin-delete-123';
+    const suffix = Date.now();
+    const administrator = await createUser(
+      `e2e-admin-delete-manager-${suffix}@example.test`,
+      password,
+      UserRole.ADMIN,
+    );
+    const target = await createUser(
+      `e2e-admin-delete-target-${suffix}@example.test`,
+      password,
+    );
+    await dataSource.getRepository(PasswordResetToken).save({
+      tokenHash: 'controlled-admin-delete-token-hash',
+      userId: target.id,
+    });
+    await dataSource.getRepository(Transcription).save({
+      text: 'Controlled administrative deletion',
+      originalFilename: 'controlled-admin.ogg',
+      language: 'pt',
+      userId: target.id,
+    });
+    const administratorToken = await login(administrator.email, password);
+
+    await request(server)
+      .delete(`/api/users/${target.id}`)
+      .set('Authorization', `Bearer ${administratorToken}`)
+      .expect(204);
+    await expect(
+      dataSource.getRepository(User).findOneBy({ id: target.id }),
+    ).resolves.toBeNull();
+    await expect(
+      dataSource.getRepository(PasswordResetToken).count({
+        where: { userId: target.id },
+      }),
+    ).resolves.toBe(0);
+    await expect(
+      dataSource.getRepository(Transcription).count({
+        where: { userId: target.id },
+      }),
+    ).resolves.toBe(0);
+  });
+
+  it('preserves an administrator during concurrent administrative deletion and demotion', async () => {
+    const password = 'senha-e2e-admin-concurrent-123';
+    const suffix = Date.now();
+    const existingAdministratorCount = await dataSource
+      .getRepository(User)
+      .count({ where: { role: UserRole.ADMIN } });
+    const firstAdministrator = await createUser(
+      `e2e-admin-concurrent-first-${suffix}@example.test`,
+      password,
+      UserRole.ADMIN,
+    );
+    const secondAdministrator = await createUser(
+      `e2e-admin-concurrent-second-${suffix}@example.test`,
+      password,
+      UserRole.ADMIN,
+    );
+    const [firstToken, secondToken] = await Promise.all([
+      login(firstAdministrator.email, password),
+      login(secondAdministrator.email, password),
+    ]);
+
+    const deletionResponses = await Promise.all([
+      request(server)
+        .delete(`/api/users/${secondAdministrator.id}`)
+        .set('Authorization', `Bearer ${firstToken}`),
+      request(server)
+        .delete(`/api/users/${firstAdministrator.id}`)
+        .set('Authorization', `Bearer ${secondToken}`),
+    ]);
+    expect(deletionResponses.map((response) => response.status).sort()).toEqual(
+      existingAdministratorCount === 0 ? [204, 409] : [204, 204],
+    );
+    await expect(
+      dataSource.getRepository(User).count({ where: { role: UserRole.ADMIN } }),
+    ).resolves.toBeGreaterThanOrEqual(1);
+
+    const demotionFirst = await createUser(
+      `e2e-admin-demotion-first-${suffix}@example.test`,
+      password,
+      UserRole.ADMIN,
+    );
+    const demotionSecond = await createUser(
+      `e2e-admin-demotion-second-${suffix}@example.test`,
+      password,
+      UserRole.ADMIN,
+    );
+    const [demotionFirstToken, demotionSecondToken] = await Promise.all([
+      login(demotionFirst.email, password),
+      login(demotionSecond.email, password),
+    ]);
+    const administratorCountBeforeDemotion = await dataSource
+      .getRepository(User)
+      .count({ where: { role: UserRole.ADMIN } });
+    const demotionResponses = await Promise.all([
+      request(server)
+        .patch(`/api/users/${demotionSecond.id}`)
+        .set('Authorization', `Bearer ${demotionFirstToken}`)
+        .send({ role: UserRole.USER }),
+      request(server)
+        .patch(`/api/users/${demotionFirst.id}`)
+        .set('Authorization', `Bearer ${demotionSecondToken}`)
+        .send({ role: UserRole.USER }),
+    ]);
+    expect(demotionResponses.map((response) => response.status).sort()).toEqual(
+      administratorCountBeforeDemotion === 2 ? [200, 409] : [200, 200],
+    );
+    await expect(
+      dataSource.getRepository(User).count({ where: { role: UserRole.ADMIN } }),
     ).resolves.toBeGreaterThanOrEqual(1);
   });
 

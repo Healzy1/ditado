@@ -12,6 +12,7 @@ import { UsersController } from '../users/users.controller';
 import { UsersService } from '../users/users.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AdminGuard } from './guards/admin.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
 import { RateLimitService } from './rate-limit.service';
@@ -80,6 +81,7 @@ describe('authentication HTTP integration', () => {
         controllers: [UsersController],
         providers: [
           JwtAuthGuard,
+          AdminGuard,
           JwtStrategy,
           { provide: ConfigService, useValue: appConfig },
           { provide: UsersService, useValue: users },
