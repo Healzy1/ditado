@@ -1999,6 +1999,12 @@ exponha segredos.
 funcionalidade estiver habilitada e a aplicação tiver inicializado com a configuração
 válida.
 
+Nesta entrega, `PASSWORD_RESET_ENABLED` deve permanecer `false`. A integração real com
+a Brevo não é requisito de aceite da entrega final; ela permanece uma configuração
+opcional para uso futuro. A implementação do fluxo habilitado deve permanecer no código
+e coberta por testes automatizados com mocks, sem exigir credencial, remetente ou caixa
+de e-mail reais.
+
 A inicialização não deve realizar chamadas à Brevo apenas para validar a credencial.
 Uma chave rejeitada pelo provedor ou a indisponibilidade temporária do serviço deve ser
 tratada como falha operacional quando houver tentativa de envio, preservando a resposta
@@ -3768,7 +3774,9 @@ funcionalidade.
 - Etapa 10 aceita e registrada;
 - todos os commits anteriores presentes;
 - ambiente e contas controlados para regressão;
-- credenciais de teste das integrações disponíveis quando necessárias.
+- credencial de teste da Groq disponível para a verificação de transcrição real;
+- `PASSWORD_RESET_ENABLED=false` no ambiente de entrega; a Brevo não requer
+  credenciais, remetente ou caixa de e-mail nesta etapa.
 
 **Escopo**
 
@@ -3798,8 +3806,12 @@ funcionalidade.
   contratos aceitos;
 - transcrição real, cinco recentes, histórico, detalhe, exclusão e isolamento entre
   duas contas são reproduzidos;
-- recuperação de senha é verificada habilitada e desabilitada, incluindo token,
-  resposta indistinguível e falha operacional segura;
+- com `PASSWORD_RESET_ENABLED=false`, a recuperação de senha é verificada integralmente:
+  a configuração pública informa indisponibilidade, os endpoints retornam `403` sem
+  executar o fluxo e as telas públicas apresentam o estado indisponível;
+- o cenário habilitado permanece coberto pelos testes automatizados com mocks, incluindo
+  token, resposta indistinguível, invalidações e falha operacional segura, sem envio
+  real pela Brevo nesta entrega;
 - administração permite operações sobre outras contas e bloqueia usuário comum,
   auto-operação administrativa, último administrador e role obsoleta;
 - rate limiting, CORS, rejeição de campos, escaping e ausência de detalhes sensíveis
@@ -3819,9 +3831,10 @@ funcionalidade.
 **Verificação humana esperada**
 
 O usuário deve acompanhar as saídas dos builds e da execução limpa, percorrer a matriz
-funcional no navegador e por API, revisar os arquivos finais e inspecionar a listagem
-do pacote. Falha em qualquer item exige correção e nova regressão afetada antes do
-registro final.
+funcional no navegador e por API, incluindo a recuperação desabilitada, revisar os
+arquivos finais e inspecionar a listagem do pacote. O cenário habilitado da recuperação
+é confirmado pelos testes automatizados com mocks, sem envio real pela Brevo. Falha em
+qualquer item exige correção e nova regressão afetada antes do registro final.
 
 **Condição para avançar**
 
